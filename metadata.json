@@ -1,0 +1,6 @@
+{
+  "name": "البريد الإلكتروني",
+  "description": "تطبيق إدارة البريد الإلكتروني الذكي متعدد الحسابات مع دعم كامل للغة العربية وقراءة الرسائل وحفظها محلياً.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
