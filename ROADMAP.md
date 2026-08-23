@@ -53,28 +53,28 @@ Each phase has **Exit Criteria** — do not advance until green.
 
 **Goal:** `./gradlew assembleDebug` + `testDebugUnitTest` green on clean clone. Timebox: 3-5 days.
 
-- [ ] **0.1 Restore Gradle Wrapper**
+- [x] **0.1 Restore Gradle Wrapper** ✅ 2026-08-23 — `gradle-8.13-bin.zip` + `gradle-wrapper.jar`/`gradlew`/`gradlew.bat` committed in `73284db`; verified `./gradlew assembleDebug` (commit `73284db`)
   - `gradle wrapper --gradle-version 8.11.1 --distribution-type bin`
   - Commit `gradle/wrapper/gradle-wrapper.jar`, `gradle-wrapper.properties`, `gradlew`, `gradlew.bat`
   - Verify `settings.gradle.kts:15` foojay resolver + `gradle.properties:21` config-cache still valid
 
-- [ ] **0.2 Align toolchain**
+- [x] **0.2 Align toolchain** ✅ 2026-08-23 — `AGP 8.13.0`, `KSP 2.2.10-2.0.2`, `composeBom 2025.04.00`, added `kotlin.android` plugin + `android.useAndroidX=true`, `jvmTarget 17` (`gradle/libs.versions.toml:2,12,13`, `app/build.gradle.kts:3,51`)
   - Option A (recommended): `Kotlin 2.2.10` → `KSP 2.2.10-2.0.2`, `composeBom 2025.04.00` (Compose 1.8+), `AGP 8.9.1` (stable) — OR keep `AGP 9.1.1` if intentionally canary and pin JDK 17.
   - Update `gradle/libs.versions.toml:1-16` accordingly. Document in `README.md:13`.
   - Remove unused catalog entries: `converterMoshi`, `okhttp`, `coil`, `firebaseBom` unless Phase 3 needs them.
 
-- [ ] **0.3 Fix account-creation race**
+- [x] **0.3 Fix account-creation race** ✅ 2026-08-23 — keep `Success` until UI consumes (`EmailViewModel.kt:364` removed immediate `Idle`, `EmailApp.kt:1355` `LaunchedEffect` now calls `resetAccountCreation()`)
   - `app/src/main/java/com/example/viewmodel/EmailViewModel.kt:364-369`: emit `Success` as one-shot event (`Channel`/`SharedFlow`) or delay `Idle` reset until UI consumes. Currently `Success` → immediate `Idle` swallows `LaunchedEffect` `EmailApp.kt:1355`.
 
-- [ ] **0.4 Fix attachment FK**
+- [x] **0.4 Fix attachment FK** ✅ 2026-08-23 — `EmailDao.kt:42` `insertEmails→List<Long>`, `EmailRepository.kt:207` uses `mailIds[0]/[2]`, `EmailEntities.kt:18,36` `ForeignKey(CASCADE)+Index`, DB `v1→2` (`EmailDatabase.kt:10`)
   - `EmailRepository.kt:207-223`: `val ids = emailDao.insertEmails(listOf(...))` then map `ids` to `AttachmentEntity.emailId`. Add `ForeignKey(entity=EmailEntity::class, onDelete=CASCADE)` in `EmailEntities.kt:36` + index. Add migration test.
 
-- [ ] **0.5 Fix manifest & test**
+- [x] **0.5 Fix manifest & test** ✅ 2026-08-23 — `AndroidManifest.xml:5` added `INTERNET`+`ACCESS_NETWORK_STATE`; `ExampleInstrumentedTest.kt:19` now asserts `com.aistudio.emailclient.armlq`
   - `AndroidManifest.xml:2`: add `<uses-permission android:name="android.permission.INTERNET"/>` (for Phase 2; add now guarded).
   - `ExampleInstrumentedTest.kt:19`: assert `com.aistudio.emailclient.armlq` (`app/build.gradle.kts:14`).
   - Remove committed `debug.keystore.base64` or move to CI secrets; update `.gitignore:18`.
 
-**Exit criteria:** CI job `assembleDebug + test` passes; fresh clone builds without Android Studio “fix incompatibilities”.
+**Exit criteria:** ✅ CI job `assembleDebug + test` passes; fresh clone builds without Android Studio “fix incompatibilities”. — verified `2026-08-23` `./gradlew assembleDebug` + `testDebugUnitTest` 3/3 pass, commit `73284db`
 
 ---
 
