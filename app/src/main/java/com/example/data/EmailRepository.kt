@@ -1,11 +1,16 @@
 package com.example.data
 
 import androidx.room.withTransaction
+import com.example.data.remote.FakeMailRemoteDataSource
+import com.example.data.remote.MailRemoteDataSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import java.util.Calendar
 
-class EmailRepository(private val database: EmailDatabase) {
+class EmailRepository(
+    private val database: EmailDatabase,
+    private val remote: MailRemoteDataSource = FakeMailRemoteDataSource()
+) {
 
     private val accountDao = database.accountDao()
     private val emailDao = database.emailDao()
@@ -71,6 +76,46 @@ class EmailRepository(private val database: EmailDatabase) {
     suspend fun createAccount(account: AccountEntity): Int {
         return accountDao.insertAccount(account).toInt()
     }
+
+    // Phase 2.2/2.3 — Remote sync
+    suspend fun syncFolder(accountId: Int, folder: String): Result<Int> {
+        val result = remote.fetchMessages(accountId, folder)
+        return result.fold(
+            onSuccess = { emails ->
+                if (emails.isNotEmpty()) {
+                    database.withTransaction {
+                        emailDao.insertEmails(emails)
+                    }
+                }
+                Result.success(emails.size)
+            },
+            onFailure = { e -> Result.failure(e) }
+        )
+    }
+
+    suspend fun syncAllFolders(accountId: Int): Result<Int> {
+        var total = 0
+        val folders = listOf("Inbox", "Sent", "Drafts", "Spam", "Trash")
+        for (f in folders) {
+            val r = syncFolder(accountId, f)
+            if (r.isFailure) return r
+            total += r.getOrNull() ?: 0
+        }
+        return Result.success(total)
+    }
+
+    suspend fun sendViaRemote(
+        accountId: Int,
+        email: EmailEntity,
+        attachments: List<AttachmentEntity>
+    ): Result<Unit> = remote.sendMessage(accountId, email, attachments)
+
+    suspend fun validateCredentials(
+        host: String,
+        port: Int,
+        username: String,
+        credential: String
+    ): Result<Unit> = remote.validateCredentials(host, port, username, credential)
 
     // Seed mock database if empty — transaction ensures atomicity
     suspend fun prepopulateDatabaseIfEmpty() {

@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,7 +30,9 @@ fun EmailTopAppBar(
     onSearchQueryChanged: (String) -> Unit,
     onMenuClick: () -> Unit,
     accounts: List<AccountEntity>,
-    onAccountSelect: (AccountEntity) -> Unit
+    onAccountSelect: (AccountEntity) -> Unit,
+    isSyncing: Boolean = false,
+    onSyncClick: (() -> Unit)? = null
 ) {
     var showAccountMenu by remember { mutableStateOf(false) }
 
@@ -88,6 +91,19 @@ fun EmailTopAppBar(
                             contentDescription = "مسح",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                }
+            }
+
+            if (onSyncClick != null) {
+                IconButton(
+                    onClick = onSyncClick,
+                    enabled = !isSyncing
+                ) {
+                    if (isSyncing) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.Refresh, contentDescription = "مزامنة")
                     }
                 }
             }

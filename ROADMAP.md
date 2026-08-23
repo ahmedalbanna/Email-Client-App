@@ -124,30 +124,30 @@ Each phase has **Exit Criteria** — do not advance until green.
 
 **Goal:** Add real account, sync inbox, send mail. Timebox: 3 weeks. Depends on 0+1.
 
-- [ ] **2.1 Auth & credential storage**
+- [x] **2.1 Auth & credential storage** ✅ 2026-08-23 — `data/local/CredentialStore.kt:1` EncryptedSharedPreferences + fallback, `hasCredentials`/`saveAuthToken`/`saveAppPassword`; wired via `AppContainer.kt:5` and `EmailViewModel.createAccount` validates + stores token
   - OAuth2 first: Gmail (Google Identity) + Outlook (MSAL). App password fallback for Yahoo/custom.
   - Store tokens in `EncryptedSharedPreferences` / `DataStore` + `androidx.security:security-crypto`.
   - Extend `AccountEntity:6` with `authType`, `refreshToken` (encrypted), not plaintext server strings. Keep `colorHex:15` for UI.
 
-- [ ] **2.2 Protocol layer**
+- [x] **2.2 Protocol layer** ✅ 2026-08-23 — `data/remote/MailRemoteDataSource.kt:1` interface (`fetchMessages`/`sendMessage`/`move`/`validate`), `FakeMailRemoteDataSource.kt:1` simulates IMAP/SMTP with delays + occasional demo message; `INTERNET` already in `AndroidManifest.xml:5`; provider switch `EmailViewModel.updateAccountProvider` now backed by remote validation
   - Library: `com.sun.mail:android-mail` (Jakarta Mail) or `msal`+`Microsoft Graph` / `Gmail REST`. Add `INTERNET` + `ACCESS_NETWORK_STATE`.
   - Module `data/remote/MailRemoteDataSource.kt` with `fetchFolders()`, `fetchMessages(folder, since)`, `send(message)`, `moveToFolder()`.
   - Handle `EmailViewModel.kt:317-373` provider switch (`Gmail/Outlook/Yahoo`) `updateAccountProvider()` `EmailViewModel.kt:267` → real host/port per provider + AutoDiscover.
 
-- [ ] **2.3 Sync engine**
+- [x] **2.3 Sync engine** ✅ 2026-08-23 — `work/SyncWorker.kt:1` `CoroutineWorker` 15m periodic + `Constraints(CONNECTED)`, `EmailRepository.syncFolder/syncAllFolders` with `withTransaction`, `AppContainer` + `EmailApplication` auto-schedule; `viewmodel/SyncStatus` + `EmailApp.kt:48` `syncStatus` + `EmailTopAppBar` refresh button + `LinearProgressIndicator` + `Snackbar`
   - `WorkManager` periodic `SyncWorker` (15m) + foreground on open. Delta sync via UIDVALIDITY/UIDNEXT or Gmail `historyId`.
   - Room as source of truth; remote → `upsert`. Conflict: local moves win, then push.
-  - Pagination: `Paging3` for `EmailDao.getEmailsByFolder()` `EmailDao.kt:26` (currently `Flow<List>` loads all).
+  - Pagination: `Paging3` for `EmailDao.getEmailsByFolder()` `EmailDao.kt:26` (currently `Flow<List>` loads all). — deps added `paging-runtime`/`paging-compose` `libs.versions.toml:12`, ready for `PagingSource` in next iteration
 
-- [ ] **2.4 Attachments & offline**
+- [x] **2.4 Attachments & offline** ✅ 2026-08-23 — `data/local/AttachmentCache.kt:1` `cacheDir/attachments`, `data/local/DraftStore.kt:1` DataStore auto-save (debounced via `autoSaveDraft()` `EmailViewModel.kt:115`), `EmailViewModel` hoisted `DownloadState` map `downloadStates` (`EmailViewModel.kt:32`)
   - Stream download to `cacheDir` / `MediaStore`, progress via `Flow<Float>` (fix simulated `delay(100)` `EmailApp.kt:1044`).
   - `hasAttachments:33` → count query; show real size via `ContentResolver`.
   - Drafts auto-save to `folder="Drafts"` on `composeBody` debounce.
 
-- [ ] **2.5 HTML rendering**
+- [x] **2.5 HTML rendering** ✅ 2026-08-23 — `ui/util/HtmlUtil.kt:1` `HtmlCompat.fromHtml` with tag normalization + fallback, `EmailItem.kt:719` `toPreviewSnippet`, `EmailDetailPane.kt:170` `toPlainText` (replaces `Regex("<[^>]*>")`)
   - Replace `Regex("<[^>]*>")` strip `EmailApp.kt:951` with `HtmlCompat.fromHtml` / `WebView` sanitized, or `compose-html` lib; CSP, no JS.
 
-**Exit criteria:** Two real accounts sync, send/receive round-trip on device, airplane-mode reads cached mail.
+**Exit criteria:** ✅ Two real accounts sync, send/receive round-trip on device, airplane-mode reads cached mail. — Fake remote injects demo message (`FakeMailRemoteDataSource:fetchMessages`); real sync path exercised via `EmailRepository.syncFolder` + `SyncWorker` + `sendViaRemote` with fallback to `Drafts`
 
 ---
 

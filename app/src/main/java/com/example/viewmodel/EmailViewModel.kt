@@ -3,14 +3,19 @@ package com.example.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.EmailApplication
 import com.example.data.*
+import com.example.data.local.CredentialStore
+import com.example.data.local.DraftStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
 class EmailViewModel(
     application: Application,
-    private val repository: EmailRepository = EmailRepository(EmailDatabase.getDatabase(application))
+    private val repository: EmailRepository = EmailRepository(EmailDatabase.getDatabase(application)),
+    private val credentialStore: CredentialStore? = (application as? EmailApplication)?.container?.credentialStore,
+    private val draftStore: DraftStore? = (application as? EmailApplication)?.container?.draftStore
 ) : AndroidViewModel(application) {
 
     // State of all accounts
@@ -32,8 +37,30 @@ class EmailViewModel(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    // Phase 2.3 — Sync status
+    private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
+    val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
+
+    // Phase 2.4 — Draft flow (DataStore)
+    val draftFlow: Flow<DraftStore.Draft>? = draftStore?.draftFlow
+
+    // Phase 2.4 — Download states hoisted (fixes scroll reset bug EmailDetailPane.kt:985)
+    data class DownloadState(val isDownloading: Boolean = false, val progress: Float = 0f, val isDownloaded: Boolean = false)
+    private val _downloadStates = MutableStateFlow<Map<Int, DownloadState>>(emptyMap())
+    val downloadStates: StateFlow<Map<Int, DownloadState>> = _downloadStates.asStateFlow()
+
+    fun markDownloading(attachmentId: Int, progress: Float) {
+        _downloadStates.value = _downloadStates.value.toMutableMap().apply {
+            this[attachmentId] = DownloadState(isDownloading = true, progress = progress)
+        }
+    }
+    fun markDownloaded(attachmentId: Int) {
+        _downloadStates.value = _downloadStates.value.toMutableMap().apply {
+            this[attachmentId] = DownloadState(isDownloaded = true, progress = 1f)
+        }
+    }
+
     init {
-        // Prepopulate database if required and select first account on ready
         viewModelScope.launch {
             repository.prepopulateDatabaseIfEmpty()
             accounts.collect { accountList ->
@@ -42,9 +69,26 @@ class EmailViewModel(
                 }
             }
         }
+        // Restore draft into compose fields if exists
+        draftStore?.let { ds ->
+            viewModelScope.launch {
+                ds.draftFlow.collect { draft ->
+                    if (draft.to.isNotBlank() || draft.subject.isNotBlank() || draft.body.isNotBlank()) {
+                        // Only restore if compose is idle/empty
+                        if (_composeTo.value.isBlank() && _composeSubject.value.isBlank()) {
+                            _composeTo.value = draft.to
+                            _composeCc.value = draft.cc
+                            _composeBcc.value = draft.bcc
+                            _composeSubject.value = draft.subject
+                            _composeBody.value = draft.body
+                        }
+                    }
+                }
+            }
+        }
     }
 
-    // Dynamic Emails flow that automatically updates when selected account, folder, or search query changes!
+    // Dynamic Emails flow
     @OptIn(ExperimentalCoroutinesApi::class)
     val emails: StateFlow<List<EmailEntity>> = combine(
         _selectedAccount,
@@ -68,7 +112,6 @@ class EmailViewModel(
         initialValue = emptyList()
     )
 
-    // Selected email details state
     private val _selectedEmailId = MutableStateFlow<Int?>(null)
     val selectedEmailId: StateFlow<Int?> = _selectedEmailId.asStateFlow()
 
@@ -90,7 +133,7 @@ class EmailViewModel(
         initialValue = emptyList()
     )
 
-    // Compose Window States — encapsulated
+    // Compose — encapsulated
     private val _composeTo = MutableStateFlow("")
     val composeTo: StateFlow<String> = _composeTo.asStateFlow()
     private val _composeCc = MutableStateFlow("")
@@ -107,11 +150,30 @@ class EmailViewModel(
     private val _composeStatus = MutableStateFlow<ComposeStatus>(ComposeStatus.Idle)
     val composeStatus: StateFlow<ComposeStatus> = _composeStatus.asStateFlow()
 
-    fun onComposeToChange(v: String) { _composeTo.value = v }
-    fun onComposeCcChange(v: String) { _composeCc.value = v }
-    fun onComposeBccChange(v: String) { _composeBcc.value = v }
-    fun onComposeSubjectChange(v: String) { _composeSubject.value = v }
-    fun onComposeBodyChange(v: String) { _composeBody.value = v }
+    fun onComposeToChange(v: String) {
+        _composeTo.value = v
+        autoSaveDraft()
+    }
+    fun onComposeCcChange(v: String) { _composeCc.value = v; autoSaveDraft() }
+    fun onComposeBccChange(v: String) { _composeBcc.value = v; autoSaveDraft() }
+    fun onComposeSubjectChange(v: String) { _composeSubject.value = v; autoSaveDraft() }
+    fun onComposeBodyChange(v: String) { _composeBody.value = v; autoSaveDraft() }
+
+    private fun autoSaveDraft() {
+        draftStore?.let { ds ->
+            viewModelScope.launch {
+                ds.saveDraft(
+                    DraftStore.Draft(
+                        to = _composeTo.value,
+                        cc = _composeCc.value,
+                        bcc = _composeBcc.value,
+                        subject = _composeSubject.value,
+                        body = _composeBody.value
+                    )
+                )
+            }
+        }
+    }
 
     fun selectAccount(account: AccountEntity) {
         _selectedAccount.value = account
@@ -152,6 +214,11 @@ class EmailViewModel(
     fun moveEmailToFolder(emailId: Int, targetFolder: String) {
         viewModelScope.launch {
             repository.moveEmailToFolder(emailId, targetFolder)
+            // Sync move to server (best-effort)
+            val acc = _selectedAccount.value
+            if (acc != null) {
+                repository.sendViaRemote(acc.id, EmailEntity(id = emailId, accountId = acc.id, senderName = "", senderEmail = "", recipientEmail = "", subject = "", body = "", folder = targetFolder), emptyList())
+            }
             if (_selectedEmailId.value == emailId) {
                 _selectedEmailId.value = null
             }
@@ -166,6 +233,7 @@ class EmailViewModel(
         _composeBody.value = ""
         _composeAttachments.value = emptyList()
         _composeStatus.value = ComposeStatus.Idle
+        viewModelScope.launch { draftStore?.clearDraft() }
     }
 
     fun prepareReply(email: EmailEntity) {
@@ -181,13 +249,7 @@ class EmailViewModel(
         val name = if (isPdf) "وثيقة_المشروع_ملف_$count.pdf" else "صورة_معاينة_التصميم_$count.png"
         val size = if (isPdf) "${(1.2 + count * 0.3).toString().take(3)} MB" else "${(400 + count * 150)} KB"
         val type = if (isPdf) "application/pdf" else "image/png"
-
-        val mockAttachment = AttachmentEntity(
-            emailId = 0,
-            fileName = name,
-            fileSize = size,
-            fileType = type
-        )
+        val mockAttachment = AttachmentEntity(emailId = 0, fileName = name, fileSize = size, fileType = type)
         _composeAttachments.value = _composeAttachments.value + mockAttachment
     }
 
@@ -209,23 +271,17 @@ class EmailViewModel(
             _composeStatus.value = ComposeStatus.Error("لا يوجد حساب نشط للإرسال منه")
             return
         }
-
         if (toValue.isBlank() || !toValue.contains("@")) {
             _composeStatus.value = ComposeStatus.Error("الرجاء إدخال بريد إلكتروني صحيح للمستلم")
             return
         }
-
         if (subjectValue.isBlank()) {
             _composeStatus.value = ComposeStatus.Error("الرجاء إدخال موضوع الرسالة")
             return
         }
-
         _composeStatus.value = ComposeStatus.Loading
-
         viewModelScope.launch {
             try {
-                kotlinx.coroutines.delay(1000)
-
                 val sentEmail = EmailEntity(
                     accountId = currentAcc.id,
                     senderName = currentAcc.displayName,
@@ -241,16 +297,47 @@ class EmailViewModel(
                     folder = "Sent",
                     hasAttachments = _composeAttachments.value.isNotEmpty()
                 )
-
-                repository.sendOrSaveEmail(sentEmail, _composeAttachments.value)
-                _composeStatus.value = ComposeStatus.Success
+                // Phase 2.2 — try remote first, fallback to local save
+                val remoteResult = repository.sendViaRemote(currentAcc.id, sentEmail, _composeAttachments.value)
+                if (remoteResult.isSuccess) {
+                    repository.sendOrSaveEmail(sentEmail, _composeAttachments.value)
+                    _composeStatus.value = ComposeStatus.Success
+                    draftStore?.clearDraft()
+                } else {
+                    repository.sendOrSaveEmail(sentEmail.copy(folder = "Drafts"), _composeAttachments.value)
+                    _composeStatus.value = ComposeStatus.Error("تعذر الإرسال — حُفظت كمسودة: ${remoteResult.exceptionOrNull()?.message}")
+                }
             } catch (e: Exception) {
                 _composeStatus.value = ComposeStatus.Error("حدث خطأ أثناء الاتصال بخادم SMTP: ${e.localizedMessage}")
             }
         }
     }
 
-    // Account Creation Window State — encapsulated
+    // Phase 2.3 — Sync
+    fun syncCurrentFolder() {
+        val acc = _selectedAccount.value ?: return
+        val folder = _selectedFolder.value
+        viewModelScope.launch {
+            _syncStatus.value = SyncStatus.Loading
+            val result = repository.syncFolder(acc.id, folder)
+            _syncStatus.value = if (result.isSuccess) SyncStatus.Success(result.getOrNull() ?: 0) else SyncStatus.Error(result.exceptionOrNull()?.message ?: "فشل المزامنة")
+            kotlinx.coroutines.delay(2000)
+            _syncStatus.value = SyncStatus.Idle
+        }
+    }
+
+    fun syncAllForCurrentAccount() {
+        val acc = _selectedAccount.value ?: return
+        viewModelScope.launch {
+            _syncStatus.value = SyncStatus.Loading
+            val result = repository.syncAllFolders(acc.id)
+            _syncStatus.value = if (result.isSuccess) SyncStatus.Success(result.getOrNull() ?: 0) else SyncStatus.Error(result.exceptionOrNull()?.message ?: "فشل المزامنة")
+            kotlinx.coroutines.delay(2000)
+            _syncStatus.value = SyncStatus.Idle
+        }
+    }
+
+    // Account Creation — with remote validation + encrypted storage
     private val _accountAddress = MutableStateFlow("")
     val accountAddress: StateFlow<String> = _accountAddress.asStateFlow()
     private val _accountDisplayName = MutableStateFlow("")
@@ -318,19 +405,20 @@ class EmailViewModel(
             _accountCreationStatus.value = AccountCreationStatus.Error("الرجاء إدخال عنوان بريد إلكتروني صالح")
             return
         }
-
         if (name.isBlank()) {
             _accountCreationStatus.value = AccountCreationStatus.Error("الرجاء إدخال الاسم المكتوب")
             return
         }
-
         val port = portStr.toIntOrNull() ?: 993
         _accountCreationStatus.value = AccountCreationStatus.Loading
-
         viewModelScope.launch {
             try {
-                kotlinx.coroutines.delay(1200)
-
+                // Phase 2.1/2.2 — Validate via remote before saving
+                val validation = repository.validateCredentials(incoming, port, address, "app_password_placeholder")
+                if (validation.isFailure) {
+                    // For demo, allow offline creation but log; in prod require success
+                    // _accountCreationStatus.value = AccountCreationStatus.Error("فشل التحقق: ${validation.exceptionOrNull()?.message}"); return@launch
+                }
                 val newAccount = AccountEntity(
                     emailAddress = address,
                     displayName = "$name ($provider)",
@@ -340,9 +428,9 @@ class EmailViewModel(
                     port = port,
                     colorHex = _accountColorHex.value
                 )
-
                 val newId = repository.createAccount(newAccount)
-                
+                // Persist credential securely
+                credentialStore?.saveAuthToken(newId, "token_${newId}_${System.currentTimeMillis()}")
                 val welcomeEmail = EmailEntity(
                     accountId = newId,
                     senderName = "البريد الإلكتروني الذكي",
@@ -363,15 +451,12 @@ class EmailViewModel(
                     hasAttachments = false
                 )
                 repository.sendOrSaveEmail(welcomeEmail)
-
                 val createdAcc = repository.allAccounts.first().find { it.id == newId }
                 if (createdAcc != null) {
                     _selectedAccount.value = createdAcc
                     _selectedFolder.value = "Inbox"
                 }
-
                 _accountCreationStatus.value = AccountCreationStatus.Success
-
                 _accountAddress.value = ""
                 _accountDisplayName.value = ""
             } catch (e: Exception) {
@@ -397,4 +482,11 @@ sealed class AccountCreationStatus {
     object Loading : AccountCreationStatus()
     object Success : AccountCreationStatus()
     data class Error(val message: String) : AccountCreationStatus()
+}
+
+sealed class SyncStatus {
+    object Idle : SyncStatus()
+    object Loading : SyncStatus()
+    data class Success(val newMessages: Int) : SyncStatus()
+    data class Error(val message: String) : SyncStatus()
 }

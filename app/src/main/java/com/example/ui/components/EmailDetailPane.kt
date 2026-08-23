@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.AttachmentEntity
 import com.example.data.EmailEntity
+import com.example.ui.util.HtmlUtil
 import com.example.ui.util.rememberDetailDateFormat
 import kotlinx.coroutines.launch
 import java.util.Date
@@ -168,12 +169,7 @@ fun EmailDetailPane(
 
             item {
                 val cleanBody = remember(email.body) {
-                    email.body
-                        .replace(Regex("<p>"), "")
-                        .replace(Regex("</p>"), "\n\n")
-                        .replace(Regex("<br\\s*/?>"), "\n")
-                        .replace(Regex("<[^>]*>"), "")
-                        .trim()
+                    HtmlUtil.toPlainText(email.body)
                 }
 
                 Card(

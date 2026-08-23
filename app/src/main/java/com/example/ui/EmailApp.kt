@@ -25,6 +25,7 @@ import com.example.ui.navigation.Screen
 import com.example.ui.screens.AddAccountPane
 import com.example.ui.screens.ComposeEmailPane
 import com.example.viewmodel.EmailViewModel
+import com.example.viewmodel.SyncStatus
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -41,6 +42,19 @@ fun EmailApp(
         val selectedEmailId by viewModel.selectedEmailId.collectAsStateWithLifecycle()
         val selectedEmail by viewModel.selectedEmail.collectAsStateWithLifecycle()
         val attachments by viewModel.selectedEmailAttachments.collectAsStateWithLifecycle()
+        val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
+        val snackbarHostState = remember { SnackbarHostState() }
+
+        LaunchedEffect(syncStatus) {
+            when (syncStatus) {
+                is SyncStatus.Success -> {
+                    val n = (syncStatus as SyncStatus.Success).newMessages
+                    if (n > 0) snackbarHostState.showSnackbar("تمت المزامنة: $n رسائل جديدة")
+                }
+                is SyncStatus.Error -> snackbarHostState.showSnackbar((syncStatus as SyncStatus.Error).message)
+                else -> {}
+            }
+        }
 
         var currentScreen by remember { mutableStateOf<Screen>(Screen.Inbox) }
         val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -80,16 +94,24 @@ fun EmailApp(
                 Scaffold(
                     topBar = {
                         if (currentScreen == Screen.Inbox) {
-                            EmailTopAppBar(
-                                selectedAccount = selectedAccount,
-                                searchQuery = viewModel.searchQuery.collectAsStateWithLifecycle().value,
-                                onSearchQueryChanged = { viewModel.setSearchQuery(it) },
-                                onMenuClick = { coroutineScope.launch { drawerState.open() } },
-                                accounts = accounts,
-                                onAccountSelect = { viewModel.selectAccount(it) }
-                            )
+                            Column {
+                                EmailTopAppBar(
+                                    selectedAccount = selectedAccount,
+                                    searchQuery = viewModel.searchQuery.collectAsStateWithLifecycle().value,
+                                    onSearchQueryChanged = { viewModel.setSearchQuery(it) },
+                                    onMenuClick = { coroutineScope.launch { drawerState.open() } },
+                                    accounts = accounts,
+                                    onAccountSelect = { viewModel.selectAccount(it) },
+                                    isSyncing = syncStatus is SyncStatus.Loading,
+                                    onSyncClick = { viewModel.syncCurrentFolder() }
+                                )
+                                if (syncStatus is SyncStatus.Loading) {
+                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                }
+                            }
                         }
                     },
+                    snackbarHost = { SnackbarHost(snackbarHostState) },
                     floatingActionButton = {
                         if (currentScreen == Screen.Inbox && (!isTablet || selectedEmailId == null)) {
                             ExtendedFloatingActionButton(

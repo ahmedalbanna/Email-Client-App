@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.EmailEntity
+import com.example.ui.util.HtmlUtil
 import com.example.ui.util.rememberListDateFormat
 import java.util.Date
 
@@ -119,7 +120,7 @@ fun EmailItem(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 val strippedSnippet = remember(email.body) {
-                    email.body.replace(Regex("<[^>]*>"), " ").trim()
+                    HtmlUtil.toPreviewSnippet(email.body)
                 }
 
                 Text(
