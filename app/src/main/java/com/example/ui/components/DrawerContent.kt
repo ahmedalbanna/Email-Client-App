@@ -253,5 +253,7 @@ fun DrawerContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp)
         )
+        Spacer(modifier = Modifier.height(12.dp))
+        PrivacyCard()
     }
 }

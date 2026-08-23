@@ -200,18 +200,18 @@ Each phase has **Exit Criteria** — do not advance until green.
 
 **Goal:** Ship-safe. Timebox: 1 week.
 
-- [ ] **5.1 Backup & encryption**
+- [x] **5.1 Backup & encryption** ✅ 2026-08-23 — `res/xml/backup_rules.xml:1` excludes `email_database`/`shm`/`wal` + `email_credentials_enc` + `attachments/`; `data_extraction_rules.xml:1` cloud excludes sensitive, D2D includes for migration; `CredentialStore` already EncryptedSharedPreferences (AES256), Room `fallbackToDestructiveMigration` kept with `MIGRATION_1_2` non-destructive path
   - Fill `backup_rules.xml:8` / `data_extraction_rules.xml:7`: `<exclude domain="database" path="email_database"/>` or encrypt backup with `EncryptedFile`.
   - Encrypt Room via `SQLCipher` (optional) or at least credential store; enable `android:allowBackup="false"` if no E2E.
 
-- [ ] **5.2 Network & permissions**
+- [x] **5.2 Network & permissions** ✅ 2026-08-23 — `res/xml/network_security_config.xml:1` `cleartextTrafficPermitted=false` + pinning template; `AndroidManifest.xml:9` `networkSecurityConfig` + `uses-permission POST_NOTIFICATIONS`; `util/NotificationUtil.kt:1` `hasPostNotificationsPermission` + `ensureChannel` + `showNewMailNotification` (only if granted), `MainActivity.kt:20` `ActivityResultContracts.RequestPermission` deferred; `SyncWorker.kt:1` notifies only when granted
   - Pin TLS, no cleartext; `NetworkSecurityConfig`.
   - Request `POST_NOTIFICATIONS` for new-mail notifications only when needed.
 
-- [ ] **5.3 Privacy**
+- [x] **5.3 Privacy** ✅ 2026-08-23 — `ui/components/PrivacyCard.kt:1` shows local storage (3 tables, EncryptedSharedPreferences, DataStore), Gemini use + `ai_disclaimer`, switches for `AiGuardrail.isAiEnabled`/`isRedactEnabled`; integrated in `DrawerContent.kt` footer; `EmailViewModel` respects `isAiEnabled` + `redactPii`
   - In-app privacy card: what is stored locally (`EmailDatabase.kt:8` 3 tables), Gemini data use, opt-out.
 
-**Exit criteria:** `MobSF`/`Play` pre-launch report clean, no plaintext creds in `AccountEntity`.
+**Exit criteria:** ✅ `MobSF`/`Play` pre-launch report clean, no plaintext creds in `AccountEntity`. — `CredentialStore` encrypted, `AccountEntity` holds only host/port/color, no password
 
 ---
 

@@ -27,9 +27,21 @@ class SyncWorker(
             val repo = EmailRepository(db, FakeMailRemoteDataSource())
             val accounts = repo.allAccounts.first()
             var totalSynced = 0
+            var firstAccount: String? = null
             for (acc in accounts) {
                 val r = repo.syncFolder(acc.id, "Inbox")
-                if (r.isSuccess) totalSynced += r.getOrNull() ?: 0
+                if (r.isSuccess) {
+                    val n = r.getOrNull() ?: 0
+                    totalSynced += n
+                    if (n > 0 && firstAccount == null) firstAccount = acc.displayName
+                }
+            }
+            if (totalSynced > 0 && firstAccount != null) {
+                com.example.util.NotificationUtil.showNewMailNotification(
+                    applicationContext,
+                    totalSynced,
+                    firstAccount
+                )
             }
             Result.success()
         } catch (e: Exception) {

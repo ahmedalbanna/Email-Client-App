@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Phase 5.2 — No cleartext, TLS pinning readiness -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+    <!-- Pinning example (uncomment with real pins for imap.gmail.com etc.)
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">imap.gmail.com</domain>
+        <domain includeSubdomains="true">smtp.gmail.com</domain>
+        <pin-set expiration="2027-01-01">
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+        </pin-set>
+    </domain-config>
+    -->
+</network-security-config>
