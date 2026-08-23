@@ -11,6 +11,7 @@ import com.example.data.local.ThemePrefs
 import com.example.data.local.UiStateStore
 import com.example.data.remote.FakeMailRemoteDataSource
 import com.example.data.remote.MailRemoteDataSource
+import com.example.util.Telemetry
 
 class AppContainer(private val context: Context) {
     val database: EmailDatabase by lazy { EmailDatabase.getDatabase(context) }
@@ -23,4 +24,5 @@ class AppContainer(private val context: Context) {
     val aiGuardrail: AiGuardrail by lazy { AiGuardrail(context) }
     val themePrefs: ThemePrefs by lazy { ThemePrefs(context) }
     val uiStateStore: UiStateStore by lazy { UiStateStore(context) }
+    val telemetry: Telemetry by lazy { Telemetry(context) }
 }

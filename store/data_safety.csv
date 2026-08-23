@@ -1,0 +1,7 @@
+Data type,Collected,Shared,Purpose,Notes
+Email content,Optional,No,App functionality,Only when Gemini opt-in; redacted PII
+Credentials (tokens/passwords),Yes,No,App functionality,EncryptedSharedPreferences AES256, excluded from cloud backup
+Contacts (email addresses),Yes,No,App functionality,Stored in Room email_database (accounts/emails)
+Location,No,No,,
+Files (attachments),Yes,No,App functionality,Cached in cacheDir/attachments, excluded from backup
+Crash logs,Optional,No,Analytics,Telemetry opt-in only, no email content

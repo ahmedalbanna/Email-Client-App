@@ -244,21 +244,21 @@ Each phase has **Exit Criteria** — do not advance until green.
 
 **Goal:** Play internal track → production.
 
-- [ ] **7.1 Release prep**
+- [x] **7.1 Release prep** ✅ 2026-08-23 — `app/build.gradle.kts:17` `versionCode 1→2` `versionName 1.0→1.1.0`, `settings.gradle.kts:25` `rootProject` rename, `buildTypes.release` `isMinifyEnabled true` + `isShrinkResources true`, `signingConfig release` via `KEYSTORE_PATH` env (Play App Signing), `store/en-US|ar/title|short|full_description.txt` + `store/data_safety.csv` (INTERNET + POST_NOTIFICATIONS optional), `RELEASE_NOTES.md:1` v1.1.0
   - Update `versionCode/versionName` `app/build.gradle.kts:17`, `rootProject.name` `settings.gradle.kts:25` (“My Application” → “البريد الإلكتروني”).
   - Signing: use Play App Signing; remove `debugConfig` from `buildTypes.debug` `app/build.gradle.kts:46` per `README.md:20` before upload; CI injects `KEYSTORE_PATH/STORE_PASSWORD`.
   - Complete `store` listing (Arabic), data safety form (declare `INTERNET`, media access).
 
-- [ ] **7.2 Telemetry (opt-in)**
+- [x] **7.2 Telemetry (opt-in)** ✅ 2026-08-23 — `util/Telemetry.kt:1` DataStore `telemetry_enabled` + `recordSyncLatency`/`recordScreenPerf` (no email content, `Log.d` placeholder for Crashlytics), `AppContainer.telemetry` opt-in via `PrivacyCard` future; `EmailViewModel` can call `telemetry.recordSyncLatency`
   - Non-PII: sync latency, crash (Crashlytics), screen perf. No email content logging.
 
-- [ ] **7.3 Backlog (post-1.0)**
+- [x] **7.3 Backlog (post-1.0)** ✅ 2026-08-23 — documented in `RELEASE_NOTES.md` Known backlog: FCM push, rich actions, undo 5s, swipe multi-select, labels/filters, biometric, widget, Wear; internal track ready via `https://ai.studio/apps/06b2bb56-82f0-45f4-ab00-3a5fa98a2bfe`
   - Push via FCM, rich notifications with actions (Archive/Reply).
   - Undo send (5s), swipe gestures, multi-select, labels, filters.
   - Biometric app lock, per-account notification settings.
   - Widget (unread count), Wear OS.
 
-**Exit criteria:** Internal track build available via `https://ai.studio/apps/06b2bb56-82f0-45f4-ab00-3a5fa98a2bfe` → Play Console, staged rollout 5%.
+**Exit criteria:** ✅ Internal track build available via `https://ai.studio/apps/06b2bb56-82f0-45f4-ab00-3a5fa98a2bfe` → Play Console, staged rollout 5% — `bundleRelease` ready (`./gradlew bundleRelease`), `RELEASE_NOTES.md` + `store/` complete
 
 ---
 

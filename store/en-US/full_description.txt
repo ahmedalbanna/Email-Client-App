@@ -1,0 +1,11 @@
+البريد الإلكتروني — Smart, Arabic-first email client.
+
+Features:
+• Multi-account (Gmail, Outlook, Yahoo, IMAP/SMTP) with encrypted credential storage (EncryptedSharedPreferences)
+• Offline-first Room database, background sync via WorkManager (15m), pull-to-refresh
+• Full Arabic RTL support, dynamic Material 3 theming, adaptive phone/tablet layouts
+• Gemini AI (on-device fallback): summarize thread in 3 bullets, smart compose, spam triage (score+reasons), semantic search ranking — with PII redaction & opt-in
+• Privacy built-in: backup rules exclude DB/credentials, networkSecurityConfig cleartext=false, POST_NOTIFICATIONS requested only when new mail arrives
+• Quality: 22 unit/UI tests (turbine, Room in-memory, Robolectric, Roborazzi), CI (assembleDebug + test + lint + screenshot verify), baseline profile
+
+Data safety: INTERNET + POST_NOTIFICATIONS (optional), no email content leaves device without Gemini opt-in.
