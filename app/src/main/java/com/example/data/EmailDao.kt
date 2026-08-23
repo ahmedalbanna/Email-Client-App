@@ -39,7 +39,7 @@ interface EmailDao {
     suspend fun insertEmail(email: EmailEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertEmails(emails: List<EmailEntity>)
+    suspend fun insertEmails(emails: List<EmailEntity>): List<Long>
 
     @Update
     suspend fun updateEmail(email: EmailEntity)

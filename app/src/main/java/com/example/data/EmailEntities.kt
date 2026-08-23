@@ -1,6 +1,8 @@
 package com.example.data
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "accounts")
@@ -15,10 +17,21 @@ data class AccountEntity(
     val colorHex: String = "#4285F4" // Brand/Visual color for this account
 )
 
-@Entity(tableName = "emails")
+@Entity(
+    tableName = "emails",
+    foreignKeys = [
+        ForeignKey(
+            entity = AccountEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["accountId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("accountId")]
+)
 data class EmailEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val accountId: Int, // Foreign key to AccountEntity if requested, but kept as Int for simpler joins
+    val accountId: Int,
     val senderName: String,
     val senderEmail: String,
     val recipientEmail: String,
@@ -33,7 +46,18 @@ data class EmailEntity(
     val hasAttachments: Boolean = false
 )
 
-@Entity(tableName = "attachments")
+@Entity(
+    tableName = "attachments",
+    foreignKeys = [
+        ForeignKey(
+            entity = EmailEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["emailId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index("emailId")]
+)
 data class AttachmentEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val emailId: Int,

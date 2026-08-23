@@ -206,21 +206,23 @@ class EmailRepository(private val database: EmailDatabase) {
 
             val mailIds = emailDao.insertEmails(listOf(emailGmail1, emailGmail2, emailGmail3, emailGmail4, emailGmail5))
 
-            // Add attachments mockup
-            emailDao.insertAttachments(listOf(
-                AttachmentEntity(
-                    emailId = 1, // Will correlate to Moayad's email
-                    fileName = "Room_Schema_Proposal.pdf",
-                    fileSize = "2.4 MB",
-                    fileType = "application/pdf"
-                ),
-                AttachmentEntity(
-                    emailId = 3, // Correlate to Sent email
-                    fileName = "Performance_Report_June_2026.xlsx",
-                    fileSize = "1.1 MB",
-                    fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-            ))
+            // Add attachments mockup — use returned IDs (fixes orphan FK bug)
+            if (mailIds.size >= 3) {
+                emailDao.insertAttachments(listOf(
+                    AttachmentEntity(
+                        emailId = mailIds[0].toInt(), // Moayad's email (emailGmail1)
+                        fileName = "Room_Schema_Proposal.pdf",
+                        fileSize = "2.4 MB",
+                        fileType = "application/pdf"
+                    ),
+                    AttachmentEntity(
+                        emailId = mailIds[2].toInt(), // Sent report (emailGmail3)
+                        fileName = "Performance_Report_June_2026.xlsx",
+                        fileSize = "1.1 MB",
+                        fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                ))
+            }
 
 
             // 3. Sample Emails for Outlook (Personal)

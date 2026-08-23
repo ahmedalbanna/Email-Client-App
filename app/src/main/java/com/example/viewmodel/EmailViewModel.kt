@@ -363,10 +363,10 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
 
                 _accountCreationStatus.value = AccountCreationStatus.Success
 
-                // Reset creation fields
+                // Reset creation fields — keep Success until UI consumes it
+                // (was: immediate Idle reset swallowed LaunchedEffect)
                 accountAddress.value = ""
                 accountDisplayName.value = ""
-                _accountCreationStatus.value = AccountCreationStatus.Idle
             } catch (e: Exception) {
                 _accountCreationStatus.value = AccountCreationStatus.Error("فشلت عملية التحقق بروتوكول IMAP: ${e.localizedMessage}")
             }

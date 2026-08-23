@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 
 @Database(
     entities = [AccountEntity::class, EmailEntity::class, AttachmentEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class EmailDatabase : RoomDatabase() {

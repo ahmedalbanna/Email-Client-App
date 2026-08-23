@@ -1355,6 +1355,7 @@ fun AddAccountPane(
     LaunchedEffect(creationStatus) {
         if (creationStatus is AccountCreationStatus.Success) {
             onCloseClick()
+            viewModel.resetAccountCreation()
         }
     }
 
