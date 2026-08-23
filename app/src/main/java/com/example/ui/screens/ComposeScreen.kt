@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -71,6 +72,18 @@ fun ComposeEmailPane(
 
             IconButton(onClick = { viewModel.addMockAttachment() }) {
                 Icon(Icons.Default.Add, contentDescription = "إرفاق ملف")
+            }
+
+            // Gemini Smart Compose
+            IconButton(
+                onClick = { viewModel.suggestSmartCompose(body.ifBlank { subject.ifBlank { to } }) },
+                enabled = composeStatus !is ComposeStatus.Loading
+            ) {
+                Icon(
+                    Icons.Default.Info,
+                    contentDescription = "اقتراح ذكي",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
 
             IconButton(

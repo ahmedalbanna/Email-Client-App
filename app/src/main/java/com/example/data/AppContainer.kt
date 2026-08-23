@@ -1,6 +1,9 @@
 package com.example.data
 
 import android.content.Context
+import com.example.ai.AiGuardrail
+import com.example.ai.FakeGeminiService
+import com.example.ai.GeminiService
 import com.example.data.local.AttachmentCache
 import com.example.data.local.CredentialStore
 import com.example.data.local.DraftStore
@@ -14,4 +17,6 @@ class AppContainer(private val context: Context) {
     val credentialStore: CredentialStore by lazy { CredentialStore(context) }
     val draftStore: DraftStore by lazy { DraftStore(context) }
     val attachmentCache: AttachmentCache by lazy { AttachmentCache(context) }
+    val geminiService: GeminiService by lazy { FakeGeminiService() }
+    val aiGuardrail: AiGuardrail by lazy { AiGuardrail(context) }
 }

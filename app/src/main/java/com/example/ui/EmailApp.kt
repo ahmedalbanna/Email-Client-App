@@ -24,6 +24,7 @@ import com.example.ui.components.EmptyReaderState
 import com.example.ui.navigation.Screen
 import com.example.ui.screens.AddAccountPane
 import com.example.ui.screens.ComposeEmailPane
+import com.example.viewmodel.AiSummaryState
 import com.example.viewmodel.EmailViewModel
 import com.example.viewmodel.SyncStatus
 import kotlinx.coroutines.launch
@@ -43,6 +44,8 @@ fun EmailApp(
         val selectedEmail by viewModel.selectedEmail.collectAsStateWithLifecycle()
         val attachments by viewModel.selectedEmailAttachments.collectAsStateWithLifecycle()
         val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
+        val aiSummary by viewModel.aiSummary.collectAsStateWithLifecycle()
+        val spamResult by viewModel.spamState.collectAsStateWithLifecycle()
         val snackbarHostState = remember { SnackbarHostState() }
 
         LaunchedEffect(syncStatus) {
@@ -53,6 +56,14 @@ fun EmailApp(
                 }
                 is SyncStatus.Error -> snackbarHostState.showSnackbar((syncStatus as SyncStatus.Error).message)
                 else -> {}
+            }
+        }
+
+        // Spam snackbar
+        LaunchedEffect(spamResult) {
+            spamResult?.let {
+                snackbarHostState.showSnackbar("فحص الذكاء: ${it.label} (${(it.score*100).toInt()}%) — ${it.reasons.joinToString()}")
+                viewModel.clearSpam()
             }
         }
 
@@ -107,6 +118,9 @@ fun EmailApp(
                                 )
                                 if (syncStatus is SyncStatus.Loading) {
                                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                }
+                                if (aiSummary is AiSummaryState.Loading) {
+                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.tertiary)
                                 }
                             }
                         }
@@ -177,7 +191,9 @@ fun EmailApp(
                                                             viewModel.prepareReply(emailItem)
                                                             currentScreen = Screen.Compose
                                                         },
-                                                        isTablet = true
+                                                        isTablet = true,
+                                                        onSummarizeClick = { viewModel.summarizeEmail(emailItem) },
+                                                        onClassifySpamClick = { viewModel.classifySpam(emailItem) }
                                                     )
                                                 } else {
                                                     EmptyReaderState()
@@ -199,7 +215,9 @@ fun EmailApp(
                                                     viewModel.prepareReply(emailItem)
                                                     currentScreen = Screen.Compose
                                                 },
-                                                isTablet = false
+                                                isTablet = false,
+                                                onSummarizeClick = { viewModel.summarizeEmail(emailItem) },
+                                                onClassifySpamClick = { viewModel.classifySpam(emailItem) }
                                             )
                                         } else {
                                             EmailListPane(
@@ -225,6 +243,41 @@ fun EmailApp(
                                     )
                                 }
                             }
+                        }
+
+                        // Phase 3 — AI Summary Dialogs
+                        when (val s = aiSummary) {
+                            is AiSummaryState.Success -> {
+                                AlertDialog(
+                                    onDismissRequest = { viewModel.clearSummary() },
+                                    title = { Text("تلخيص ذكي — Gemini") },
+                                    text = {
+                                        Column {
+                                            Text(s.summary, fontSize = 13.sp, lineHeight = 20.sp)
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                viewModel.aiDisclaimer,
+                                                fontSize = 10.sp,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    },
+                                    confirmButton = {
+                                        TextButton(onClick = { viewModel.clearSummary() }) { Text("حسناً") }
+                                    }
+                                )
+                            }
+                            is AiSummaryState.Error -> {
+                                AlertDialog(
+                                    onDismissRequest = { viewModel.clearSummary() },
+                                    title = { Text("تعذر التلخيص") },
+                                    text = { Text(s.message) },
+                                    confirmButton = {
+                                        TextButton(onClick = { viewModel.clearSummary() }) { Text("إغلاق") }
+                                    }
+                                )
+                            }
+                            else -> {}
                         }
                     }
                 }

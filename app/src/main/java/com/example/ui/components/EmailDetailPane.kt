@@ -34,7 +34,9 @@ fun EmailDetailPane(
     onStarToggle: () -> Unit,
     onFolderMove: (Int, String) -> Unit,
     onReplyClick: () -> Unit,
-    isTablet: Boolean
+    isTablet: Boolean,
+    onSummarizeClick: (() -> Unit)? = null,
+    onClassifySpamClick: (() -> Unit)? = null
 ) {
     val dateFormat = rememberDetailDateFormat()
     val dateStr = remember(email.timestamp) { dateFormat.format(Date(email.timestamp)) }
@@ -58,6 +60,18 @@ fun EmailDetailPane(
             }
 
             Spacer(modifier = Modifier.weight(1f))
+
+            if (onSummarizeClick != null) {
+                IconButton(onClick = onSummarizeClick) {
+                    Icon(Icons.Default.Info, contentDescription = "تلخيص بالذكاء")
+                }
+            }
+
+            if (onClassifySpamClick != null) {
+                IconButton(onClick = onClassifySpamClick) {
+                    Icon(Icons.Default.Warning, contentDescription = "فحص مزعج")
+                }
+            }
 
             IconButton(onClick = onReplyClick) {
                 Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = "رد")

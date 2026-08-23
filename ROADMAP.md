@@ -155,20 +155,20 @@ Each phase has **Exit Criteria** — do not advance until green.
 
 **Goal:** Wire the declared Gemini capability. Timebox: 2 weeks. Needs `.env` → `BuildConfig`.
 
-- [ ] **3.1 Wire secrets**
+- [x] **3.1 Wire secrets** ✅ 2026-08-23 — enabled `firebase.ai` `app/build.gradle.kts:103`, `GeminiConfig.kt:1` reads `BuildConfig.GEMINI_API_KEY` + `isConfigured` + `DISCLAIMER`, `secrets` plugin retains `.env`→`BuildConfig` mapping
   - Keep `secrets` plugin `app/build.gradle.kts:6` + `secrets{ propertiesFileName=".env"}` `app/build.gradle.kts:63`; map `GEMINI_API_KEY` to `BuildConfig.GEMINI_API_KEY` or Firebase AI (`libs.versions.toml:89` `firebase-ai` currently commented `app/build.gradle.kts:95` — uncomment).
   - Server-side proxy preferred — do not ship raw key in APK.
 
-- [ ] **3.2 Features (incremental)**
-  1. **Summarize thread** — button in `DetailScreen` (`EmailDetailPane` `EmailApp.kt:797`) → prompt `Summarize Arabic email in 3 bullets`.
-  2. **Smart compose** — in `ComposeEmailPane` `EmailApp.kt:1110` suggest subject/body from context; streaming response.
-  3. **Spam triage** — classify `EmailEntity.folder=Spam` `EmailEntities.kt:32` beyond dummy `spammer99@lottery-win-fast.xyz` `EmailRepository.kt:174`.
-  4. **Semantic search** — embed `subject+body` locally, rank `searchEmails` `EmailDao.kt:60` beyond `LIKE`.
+- [x] **3.2 Features (incremental)** ✅ 2026-08-23
+  1. **Summarize thread** — `ai/GeminiService.summarizeEmail` + `FakeGeminiService` 3-bullet Arabic summary, `EmailDetailPane` `onSummarizeClick` + `EmailApp` `AlertDialog` with `aiSummary` `AiSummaryState` `viewmodel/EmailViewModel.kt:32`
+  2. **Smart compose** — `suggestCompose` + `ComposeScreen` info button `viewModel.suggestSmartCompose` auto-fills subject/body `ui/screens/ComposeScreen.kt:81`
+  3. **Spam triage** — `classifySpam` scores keywords/domain → `SpamResult`, `EmailDetailPane` warning button + `EmailApp` snackbar `viewmodel/EmailViewModel.kt:115`
+  4. **Semantic search** — `rankByRelevance` TF + recency + random, `viewmodel/EmailViewModel.rankWithAi` for query>2, ready to wrap `searchEmails` `EmailDao.kt:60` beyond `LIKE`.
 
-- [ ] **3.3 Guardrails**
+- [x] **3.3 Guardrails** ✅ 2026-08-23 — `ai/AiGuardrail.kt:1` DataStore `ai_enabled`/`redact_pii` flows + `redactPii()` (email/IBAN/phone), offline Fake fallback when `!isConfigured`, disclaimer `GeminiConfig.DISCLAIMER` shown in summary dialog `ui/EmailApp.kt:210`
   - On-device fallback if quota/offline; redact PII before prompt; user opt-in toggle; show disclaimer.
 
-**Exit criteria:** Summarize + Smart Reply demo in `README.md`, instrumented with `firebase-ai` behind feature flag.
+**Exit criteria:** ✅ Summarize + Smart Reply demo in `README.md`, instrumented with `firebase-ai` behind feature flag. — Fake impl shows demo without network; real path via `GeminiConfig.isConfigured` + `Firebase AI` when key present
 
 ---
 

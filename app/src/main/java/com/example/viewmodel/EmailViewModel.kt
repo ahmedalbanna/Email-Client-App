@@ -4,6 +4,10 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.EmailApplication
+import com.example.ai.AiGuardrail
+import com.example.ai.FakeGeminiService
+import com.example.ai.GeminiConfig
+import com.example.ai.GeminiService
 import com.example.data.*
 import com.example.data.local.CredentialStore
 import com.example.data.local.DraftStore
@@ -15,7 +19,9 @@ class EmailViewModel(
     application: Application,
     private val repository: EmailRepository = EmailRepository(EmailDatabase.getDatabase(application)),
     private val credentialStore: CredentialStore? = (application as? EmailApplication)?.container?.credentialStore,
-    private val draftStore: DraftStore? = (application as? EmailApplication)?.container?.draftStore
+    private val draftStore: DraftStore? = (application as? EmailApplication)?.container?.draftStore,
+    private val geminiService: GeminiService? = (application as? EmailApplication)?.container?.geminiService,
+    private val aiGuardrail: AiGuardrail? = (application as? EmailApplication)?.container?.aiGuardrail
 ) : AndroidViewModel(application) {
 
     // State of all accounts
@@ -337,6 +343,64 @@ class EmailViewModel(
         }
     }
 
+    // Phase 3 — Gemini AI
+    private val _aiSummary = MutableStateFlow<AiSummaryState>(AiSummaryState.Idle)
+    val aiSummary: StateFlow<AiSummaryState> = _aiSummary.asStateFlow()
+    private val _smartSuggestion = MutableStateFlow<GeminiService.ComposeSuggestion?>(null)
+    val smartSuggestion: StateFlow<GeminiService.ComposeSuggestion?> = _smartSuggestion.asStateFlow()
+    private val _spamState = MutableStateFlow<GeminiService.SpamResult?>(null)
+    val spamState: StateFlow<GeminiService.SpamResult?> = _spamState.asStateFlow()
+    val aiEnabled = aiGuardrail?.isAiEnabled ?: flowOf(true)
+    val aiDisclaimer = aiGuardrail?.disclaimer() ?: GeminiConfig.DISCLAIMER
+
+    fun summarizeEmail(email: EmailEntity) {
+        viewModelScope.launch {
+            _aiSummary.value = AiSummaryState.Loading
+            val g = geminiService ?: FakeGeminiService()
+            val redacted = aiGuardrail?.redactPii(email.body) ?: email.body
+            val toSummarize = email.copy(body = redacted)
+            val res = g.summarizeEmail(toSummarize)
+            _aiSummary.value = res.fold(
+                onSuccess = { AiSummaryState.Success(it) },
+                onFailure = { AiSummaryState.Error(it.message ?: "فشل التلخيص") }
+            )
+        }
+    }
+
+    fun clearSummary() { _aiSummary.value = AiSummaryState.Idle }
+
+    fun suggestSmartCompose(context: String) {
+        viewModelScope.launch {
+            val g = geminiService ?: FakeGeminiService()
+            val redacted = aiGuardrail?.redactPii(context) ?: context
+            val res = g.suggestCompose(redacted)
+            res.onSuccess {
+                _composeSubject.value = it.subject
+                _composeBody.value = it.body
+                _smartSuggestion.value = it
+            }
+        }
+    }
+
+    fun classifySpam(email: EmailEntity) {
+        viewModelScope.launch {
+            val g = geminiService ?: FakeGeminiService()
+            val res = g.classifySpam(email)
+            res.onSuccess { _spamState.value = it }
+        }
+    }
+
+    fun clearSpam() { _spamState.value = null }
+
+    // Semantic search ranking — used when query length > 2
+    suspend fun rankWithAi(query: String, emails: List<EmailEntity>): List<EmailEntity> {
+        val g = geminiService ?: return emails
+        val enabled = aiGuardrail?.isAiEnabled?.first() ?: true
+        if (!enabled || query.length < 3) return emails
+        val redactedQuery = aiGuardrail?.redactPii(query) ?: query
+        return g.rankByRelevance(redactedQuery, emails).getOrElse { emails }
+    }
+
     // Account Creation — with remote validation + encrypted storage
     private val _accountAddress = MutableStateFlow("")
     val accountAddress: StateFlow<String> = _accountAddress.asStateFlow()
@@ -489,4 +553,11 @@ sealed class SyncStatus {
     object Loading : SyncStatus()
     data class Success(val newMessages: Int) : SyncStatus()
     data class Error(val message: String) : SyncStatus()
+}
+
+sealed class AiSummaryState {
+    object Idle : AiSummaryState()
+    object Loading : AiSummaryState()
+    data class Success(val summary: String) : AiSummaryState()
+    data class Error(val message: String) : AiSummaryState()
 }
