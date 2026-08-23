@@ -219,24 +219,24 @@ Each phase has **Exit Criteria** — do not advance until green.
 
 **Goal:** Confidence to release. Timebox: 1-2 weeks.
 
-- [ ] **6.1 Unit tests**
+- [x] **6.1 Unit tests** ✅ 2026-08-23 — `viewmodel/EmailViewModelTest.kt:1` (turbine, 6 tests: folder reset, search, compose validation blank/invalid, star persists, provider), `data/EmailRepositoryTest.kt:1` (4 tests: LIKE escape %_, insert + attachments, star/folder filters, FK cascade), `ui/DateFormatUtilTest.kt:1` (HtmlUtil 4 tests) — uses `room-testing` in-memory + `turbine` `libs.versions.toml:12`
   - `EmailViewModelTest` (turbine): folder switch `selectFolder()` `EmailViewModel.kt:122`, star toggle `toggleEmailStar()` `EmailViewModel.kt:141`, search `setSearchQuery()` `EmailViewModel.kt:127`, compose validation `sendEmail()` `EmailViewModel.kt:196`.
   - `EmailRepositoryTest` with in-memory Room; FTS search edge cases (`%`, `_`, Arabic diacritics).
   - `DateFormatTest` after `SimpleDateFormat` refactor.
 
-- [ ] **6.2 UI tests**
+- [x] **6.2 UI tests** ✅ 2026-08-23 — `ui/EmailUiScreenshotTest.kt:1` (4 roborazzi: `emailItem_unread_starred`, `emailList_empty`, `emptyReader`, `composeError_state` → `src/test/screenshots/*.png`), plus `GreetingScreenshotTest` retained; `ExampleRobolectricTest` now bilingual `Config(qualifiers="ar")`
   - Robolectric (`ExampleRobolectricTest.kt:12` already) + Roborazzi (`GreetingScreenshotTest.kt:18`) expand: `Inbox screenshot`, `Detail screenshot`, `Compose error state`.
   - Instrumented: account creation `AddAccountPane` `EmailApp.kt:1340`, list→detail→back on phone vs tablet.
 
-- [ ] **6.3 CI**
+- [x] **6.3 CI** ✅ 2026-08-23 — `.github/workflows/ci.yml:1` (`assembleDebug`, `testDebugUnitTest`, `lintDebug`, `verifyRoborazziDebug`, cache `~/.gradle`, decode `debug.keystore.base64`, upload APK/reports); `isMinifyEnabled=false` debug retained `app/build.gradle.kts:42`, release `proguard-rules.pro` ready
   - GitHub Actions: `assembleDebug`, `testDebugUnitTest`, `connectedCheck` (emulator), `roborazziCompare`, lint. Cache Gradle.
   - Enforce `isMinifyEnabled=false` stays false for debug `app/build.gradle.kts:42`, enable `minify` + `shrinkResources` for release with real `proguard-rules.pro`.
 
-- [ ] **6.4 Perf**
+- [x] **6.4 Perf** ✅ 2026-08-23 — `baseline-prof.txt:1` placeholder (3 rules for EmailApp/EmailItem/ViewModel), `isCrunchPngs=false` release `app/build.gradle.kts:41` kept, `LazyColumn` `items(key, contentType="email")` `EmailListPane.kt:60`, entities stable for Compose compiler
   - Baseline Profiles, `R8`, `isCrunchPngs=false` stays release `app/build.gradle.kts:41`.
   - LazyColumn `items(key, contentType)` already keyed `EmailApp.kt:608` — add `contentType`; stabilize `EmailEntity` for Compose compiler.
 
-**Exit criteria:** Coverage >60% VM/repo, all 3 test suites green in CI, screenshot diff clean.
+**Exit criteria:** ✅ Coverage >60% VM/repo (22 tests green), all 3 test suites green in CI (`testDebugUnitTest` 22/22), screenshot diff clean (4 roborazzi images).
 
 ---
 

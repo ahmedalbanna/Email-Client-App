@@ -16,6 +16,11 @@ roomRuntime = "2.7.0"
 roomKtx = "2.7.0"
 roomCompiler = "2.7.0"
 kotlinxCoroutinesTest = "1.10.2"
+turbine = "1.1.0"
+androidxTestCore = "1.6.1"
+androidxTestRunner = "1.6.2"
+androidxTestRules = "1.6.1"
+roomTesting = "2.7.0"
 core = "1.6.1"
 runner = "1.6.2"
 coilCompose = "2.7.0"
@@ -63,6 +68,11 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomCompiler" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutinesTest" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "roomTesting" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
+androidx-test-rules = { group = "androidx.test", name = "rules", version.ref = "androidxTestRules" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 androidx-core = { group = "androidx.test", name = "core", version.ref = "core" }
 androidx-runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }

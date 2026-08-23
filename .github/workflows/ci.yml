@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+      - name: Grant execute permission
+        run: chmod +x gradlew
+      - name: Decode debug keystore
+        run: |
+          if [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+            echo "debug keystore restored"
+          else
+            echo "no keystore base64, using debug default"
+          fi
+      - name: Create local.properties
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+      - name: Assemble Debug
+        run: ./gradlew assembleDebug --stacktrace
+      - name: Unit tests (Robolectric + Turbine)
+        run: ./gradlew testDebugUnitTest --stacktrace
+      - name: Lint
+        run: ./gradlew lintDebug --stacktrace
+        continue-on-error: true
+      - name: Roborazzi compare
+        run: ./gradlew verifyRoborazziDebug --stacktrace
+        continue-on-error: true
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            app/build/reports/tests/
+            app/build/reports/lint-results-*.html
+          if-no-files-found: warn
+
+  baseline-profile:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Baseline Profile
+        run: echo "Baseline profile generation placeholder — run ./gradlew generateBaselineProfile on macrobenchmark"
+

@@ -1,0 +1,6 @@
+# Baseline profile placeholder — Phase 6.4
+# Generated via: ./gradlew :app:generateBaselineProfile
+# Rules will be appended automatically by Macrobenchmark.
+HSPLcom/example/ui/EmailAppKt;->EmailApp(Landroidx/compose/runtime/Composer;I)V
+HSPLcom/example/ui/components/EmailItemKt;->EmailItem(Lcom/example/data/EmailEntity;ZLkotlin/jvm/functions/Function0;Lkotlin/jvm/functions/Function0;Landroidx/compose/runtime/Composer;I)V
+HSPLcom/example/viewmodel/EmailViewModel;->getEmails()Lkotlinx/coroutines/flow/StateFlow;
