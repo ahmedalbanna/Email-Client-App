@@ -10,11 +10,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.EmailApplication
+import com.example.R
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.components.DrawerContent
 import com.example.ui.components.EmailDetailPane
@@ -35,7 +39,16 @@ fun EmailApp(
     viewModel: EmailViewModel,
     modifier: Modifier = Modifier
 ) {
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+    // Phase 4.1 — Respect system RTL; allow override via ThemePrefs forceRtl (null = system)
+    val app = LocalContext.current.applicationContext as? EmailApplication
+    val forceRtl by app?.container?.themePrefs?.forceRtlFlow?.collectAsState(initial = null) ?: remember { mutableStateOf(null) }
+    val systemDir = LocalLayoutDirection.current
+    val targetDir = when (forceRtl) {
+        true -> LayoutDirection.Rtl
+        false -> LayoutDirection.Ltr
+        else -> systemDir
+    }
+    CompositionLocalProvider(LocalLayoutDirection provides targetDir) {
         val accounts by viewModel.accounts.collectAsStateWithLifecycle()
         val selectedAccount by viewModel.selectedAccount.collectAsStateWithLifecycle()
         val selectedFolder by viewModel.selectedFolder.collectAsStateWithLifecycle()
@@ -138,9 +151,9 @@ fun EmailApp(
                                 shape = RoundedCornerShape(16.dp),
                                 modifier = Modifier.padding(16.dp)
                             ) {
-                                Icon(Icons.Default.Create, contentDescription = "إنشاء رسالة")
+                                Icon(Icons.Default.Create, contentDescription = stringResource(R.string.compose))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("إنشاء رسالة", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text(stringResource(R.string.compose), fontWeight = FontWeight.Bold, fontSize = 14.sp)
                             }
                         }
                     }
@@ -167,7 +180,9 @@ fun EmailApp(
                                                     selectedEmailId = selectedEmailId,
                                                     selectedFolder = selectedFolder,
                                                     onEmailClick = { viewModel.selectEmail(it.id) },
-                                                    onStarToggle = { viewModel.toggleEmailStar(it) }
+                                                    onStarToggle = { viewModel.toggleEmailStar(it) },
+                                                    isRefreshing = syncStatus is SyncStatus.Loading,
+                                                    onRefresh = { viewModel.syncCurrentFolder() }
                                                 )
                                             }
                                             Box(
@@ -225,7 +240,9 @@ fun EmailApp(
                                                 selectedEmailId = selectedEmailId,
                                                 selectedFolder = selectedFolder,
                                                 onEmailClick = { viewModel.selectEmail(it.id) },
-                                                onStarToggle = { viewModel.toggleEmailStar(it) }
+                                                onStarToggle = { viewModel.toggleEmailStar(it) },
+                                                isRefreshing = syncStatus is SyncStatus.Loading,
+                                                onRefresh = { viewModel.syncCurrentFolder() }
                                             )
                                         }
                                     }

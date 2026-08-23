@@ -11,6 +11,7 @@ import com.example.ai.GeminiService
 import com.example.data.*
 import com.example.data.local.CredentialStore
 import com.example.data.local.DraftStore
+import com.example.data.local.UiStateStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -21,7 +22,8 @@ class EmailViewModel(
     private val credentialStore: CredentialStore? = (application as? EmailApplication)?.container?.credentialStore,
     private val draftStore: DraftStore? = (application as? EmailApplication)?.container?.draftStore,
     private val geminiService: GeminiService? = (application as? EmailApplication)?.container?.geminiService,
-    private val aiGuardrail: AiGuardrail? = (application as? EmailApplication)?.container?.aiGuardrail
+    private val aiGuardrail: AiGuardrail? = (application as? EmailApplication)?.container?.aiGuardrail,
+    private val uiStateStore: UiStateStore? = (application as? EmailApplication)?.container?.uiStateStore
 ) : AndroidViewModel(application) {
 
     // State of all accounts
@@ -67,11 +69,24 @@ class EmailViewModel(
     }
 
     init {
+        // Phase 4.2 — Restore UI state
+        viewModelScope.launch {
+            uiStateStore?.selectedFolderFlow?.collect { saved ->
+                if (saved.isNotBlank() && saved != _selectedFolder.value) _selectedFolder.value = saved
+            }
+        }
+        viewModelScope.launch {
+            uiStateStore?.searchQueryFlow?.collect { q ->
+                if (q != _searchQuery.value) _searchQuery.value = q
+            }
+        }
         viewModelScope.launch {
             repository.prepopulateDatabaseIfEmpty()
+            val savedId = try { uiStateStore?.selectedAccountIdFlow?.first() } catch (e: Exception) { null }
             accounts.collect { accountList ->
                 if (accountList.isNotEmpty() && _selectedAccount.value == null) {
-                    _selectedAccount.value = accountList.first()
+                    val saved = savedId?.let { id -> accountList.find { it.id == id } }
+                    _selectedAccount.value = saved ?: accountList.first()
                 }
             }
         }
@@ -185,15 +200,21 @@ class EmailViewModel(
         _selectedAccount.value = account
         _selectedFolder.value = "Inbox"
         _selectedEmailId.value = null
+        viewModelScope.launch {
+            uiStateStore?.setSelectedAccountId(account.id)
+            uiStateStore?.setSelectedFolder("Inbox")
+        }
     }
 
     fun selectFolder(folder: String) {
         _selectedFolder.value = folder
         _selectedEmailId.value = null
+        viewModelScope.launch { uiStateStore?.setSelectedFolder(folder) }
     }
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+        viewModelScope.launch { uiStateStore?.setSearchQuery(query) }
     }
 
     fun selectEmail(id: Int?) {

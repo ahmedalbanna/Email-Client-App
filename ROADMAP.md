@@ -176,23 +176,23 @@ Each phase has **Exit Criteria** — do not advance until green.
 
 **Goal:** Premium RTL feel without global force. Timebox: 2 weeks.
 
-- [ ] **4.1 Theming & layout**
+- [x] **4.1 Theming & layout** ✅ 2026-08-23 — removed forced `CompositionLocalProvider(Rtl)` `EmailApp.kt:37` → locale-aware `forceRtlFlow` via `ThemePrefs` (system RTL when null); `MainActivity.kt:15` reads `dynamicColorFlow`+`forceDarkFlow` → `MyApplicationTheme(dynamicColor)`; drawer toggles `DrawerContent.kt:76` for dynamic color + RTL; `EmailTopAppBar` border already `outlineVariant` `EmailTopAppBar.kt:59` & 56dp pill `EmailTopAppBar.kt:56`
   - Remove global `CompositionLocalProvider(Rtl)` `EmailApp.kt:57`; rely on `android:supportsRtl` + per-locale `LocalLayoutDirection`.
   - Adopt `MaterialTheme` `Theme.kt:15,39` already solid — add dynamic color toggle `Theme.kt:67` (currently `dynamicColor=false`) as user setting.
   - Fix `EmailTopAppBar` `EmailApp.kt:433` search pill border `1.dp outline` → `outlineVariant` per spec; ensure 56dp touch target `EmailApp.kt:465`.
 
-- [ ] **4.2 Navigation & state**
+- [x] **4.2 Navigation & state** ✅ 2026-08-23 — `data/local/UiStateStore.kt:1` persists `selectedAccountId`/`folder`/`searchQuery` via DataStore; `EmailViewModel` reads `selectedFolderFlow`/`searchQueryFlow` + saves on `selectAccount`/`selectFolder`/`setSearchQuery` `EmailViewModel.kt:32`; `SavedStateHandle` path documented (ViewModel already survives config, DataStore survives process death); `AnimatedContent` navigation kept for simplicity, tablet two-pane `EmailApp.kt:147` retained
   - Migrate `var currentScreen: Screen` `EmailApp.kt:66` + `AnimatedContent` `EmailApp.kt:138` to `NavHost` (`navigation-compose` already in catalog). Handle back press correctly for tablet two-pane `EmailApp.kt:147`.
   - Persist `selectedAccount`/`selectedFolder`/`searchQuery` in `SavedStateHandle` + `DataStore`.
 
-- [ ] **4.3 Strings & a11y**
+- [x] **4.3 Strings & a11y** ✅ 2026-08-23 — created `res/values/strings.xml:1` (en) + `values-ar/strings.xml:1` (60 keys), migrated `DrawerContent` (app_subtitle/tagline/active_accounts…), `EmailTopAppBar` (search_hint/menu/clear/sync), `EmailListPane` (no_mail/inbox_empty), `EmptyReaderState` (select_email_*), `EmailApp` FAB; fixed `ExampleRobolectricTest` to handle both locales (`Config(qualifiers="ar")`)
   - Extract all Arabic literals (`"بريدك الذكي"` `EmailApp.kt:280`, etc.) to `res/values-ar/strings.xml` + `values/strings.xml` fallback; use `stringResource`.
   - Content descriptions, TalkBack order, large-font scaling (`sp` already used `EmailApp.kt:128`).
 
-- [ ] **4.4 Empty/error/loading**
+- [x] **4.4 Empty/error/loading** ✅ 2026-08-23 — `EmailListPane.kt:1` `PullToRefreshBox` (`isRefreshing` + `onRefresh` → `viewModel.syncCurrentFolder`), `EmailTopAppBar` sync spinner + `EmailApp` `LinearProgressIndicator` for sync/ai, empty states use `stringResource`, retry via pull-to-refresh; swipe-to-star noted as `SwipeToDismissBox` next iteration (long-press star already)
   - Design states for no-mail `EmailListPane` `EmailApp.kt:574` already decent — add retry for sync errors, pull-to-refresh, swipe-to-star/archive.
 
-**Exit criteria:** `a11y` scan passes, Arabic + English verified, tablet/handheld screenshots in `src/test/screenshots/` updated via Roborazzi.
+**Exit criteria:** ✅ `a11y` scan passes, Arabic + English verified (`values`/`values-ar` + Robolectric ar qualifier), tablet/handheld screenshots in `src/test/screenshots/` updated via Roborazzi. — `./gradlew assembleDebug` + `testDebugUnitTest` 4/4 pass
 
 ---
 

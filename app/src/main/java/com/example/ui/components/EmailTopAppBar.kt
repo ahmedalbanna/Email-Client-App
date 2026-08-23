@@ -16,9 +16,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.AccountEntity
 import com.example.ui.util.parseColor
 
@@ -50,7 +52,7 @@ fun EmailTopAppBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onMenuClick) {
-                Icon(Icons.Default.Menu, contentDescription = "القائمة الجانبية")
+                Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.menu))
             }
 
             Row(
@@ -65,14 +67,14 @@ fun EmailTopAppBar(
             ) {
                 Icon(
                     Icons.Default.Search,
-                    contentDescription = "بحث",
+                    contentDescription = stringResource(R.string.search),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 TextField(
                     value = searchQuery,
                     onValueChange = onSearchQueryChanged,
-                    placeholder = { Text("البحث في البريد...", fontSize = 14.sp) },
+                    placeholder = { Text(stringResource(R.string.search_hint), fontSize = 14.sp) },
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
                         unfocusedContainerColor = Color.Transparent,
@@ -88,7 +90,7 @@ fun EmailTopAppBar(
                     IconButton(onClick = { onSearchQueryChanged("") }) {
                         Icon(
                             Icons.Default.Close,
-                            contentDescription = "مسح",
+                            contentDescription = stringResource(R.string.clear),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -103,7 +105,7 @@ fun EmailTopAppBar(
                     if (isSyncing) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else {
-                        Icon(Icons.Default.Refresh, contentDescription = "مزامنة")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.sync))
                     }
                 }
             }
@@ -135,7 +137,7 @@ fun EmailTopAppBar(
                     onDismissRequest = { showAccountMenu = false }
                 ) {
                     Text(
-                        text = "التبديل بين الحسابات",
+                        text = stringResource(R.string.switch_accounts),
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.primary,

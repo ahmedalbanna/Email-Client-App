@@ -11,18 +11,23 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.EmailApplication
+import com.example.R
 import com.example.data.AccountEntity
 import com.example.ui.util.parseColor
+import kotlinx.coroutines.launch
 
 data class FolderItem(val id: String, val title: String, val icon: ImageVector)
 
@@ -61,13 +66,13 @@ fun DrawerContent(
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
-                    text = "بريدك الذكي",
+                    text = stringResource(R.string.app_subtitle),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "نظام اتصال مشفر ومحلي",
+                    text = stringResource(R.string.app_tagline),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -77,7 +82,7 @@ fun DrawerContent(
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         Text(
-            text = "الحسابات النشطة",
+            text = stringResource(R.string.active_accounts),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -150,7 +155,7 @@ fun DrawerContent(
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = "إضافة حساب جديد (IMAP/SMTP)",
+                text = stringResource(R.string.add_account_imap),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.primary
@@ -160,7 +165,7 @@ fun DrawerContent(
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
         Text(
-            text = "المجلدات",
+            text = stringResource(R.string.folders),
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary,
@@ -168,12 +173,12 @@ fun DrawerContent(
         )
 
         val foldersList = listOf(
-            FolderItem("Inbox", "صندوق الوارد", Icons.Default.Email),
-            FolderItem("Starred", "المميزة بنجمة", Icons.Default.Star),
-            FolderItem("Sent", "البريد المرسل", Icons.AutoMirrored.Filled.Send),
-            FolderItem("Drafts", "المسودات", Icons.Default.Edit),
-            FolderItem("Spam", "البريد المزعج", Icons.Default.Warning),
-            FolderItem("Trash", "سلة المهملات", Icons.Default.Delete)
+            FolderItem("Inbox", stringResource(R.string.inbox), Icons.Default.Email),
+            FolderItem("Starred", stringResource(R.string.starred), Icons.Default.Star),
+            FolderItem("Sent", stringResource(R.string.sent), Icons.AutoMirrored.Filled.Send),
+            FolderItem("Drafts", stringResource(R.string.drafts), Icons.Default.Edit),
+            FolderItem("Spam", stringResource(R.string.spam), Icons.Default.Warning),
+            FolderItem("Trash", stringResource(R.string.trash), Icons.Default.Delete)
         )
 
         foldersList.forEach { folder ->
@@ -203,5 +208,50 @@ fun DrawerContent(
                 )
             }
         }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+        // Phase 4.1 — Theme toggles
+        val app = LocalContext.current.applicationContext as? EmailApplication
+        val dynamicColor by app?.container?.themePrefs?.dynamicColorFlow?.collectAsState(initial = false)
+            ?: remember { mutableStateOf(false) }
+        val forceRtl by app?.container?.themePrefs?.forceRtlFlow?.collectAsState(initial = null)
+            ?: remember { mutableStateOf(null) }
+        val scope = rememberCoroutineScope()
+
+        Text(
+            text = "المظهر",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("ألوان ديناميكية (Android 12+)", fontSize = 12.sp)
+            Switch(
+                checked = dynamicColor,
+                onCheckedChange = { scope.launch { app?.container?.themePrefs?.setDynamicColor(it) } }
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("فرض RTL", fontSize = 12.sp)
+            Switch(
+                checked = forceRtl == true,
+                onCheckedChange = { scope.launch { app?.container?.themePrefs?.setForceRtl(if (it) true else null) } }
+            )
+        }
+        Text(
+            text = stringResource(R.string.ai_disclaimer),
+            fontSize = 9.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp)
+        )
     }
 }
