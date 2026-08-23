@@ -1,8 +1,8 @@
 package com.example.data
 
+import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flow
 import java.util.Calendar
 
 class EmailRepository(private val database: EmailDatabase) {
@@ -24,7 +24,12 @@ class EmailRepository(private val database: EmailDatabase) {
         if (query.isBlank()) {
             return emailDao.getEmailsByFolder(accountId, "Inbox")
         }
-        return emailDao.searchEmails(accountId, "%$query%")
+        // Escape LIKE wildcards % _ and \ — prevents injection and mis-search
+        val escaped = query
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
+        return emailDao.searchEmails(accountId, "%$escaped%")
     }
 
     fun getEmailById(id: Int): Flow<EmailEntity?> {
@@ -67,11 +72,11 @@ class EmailRepository(private val database: EmailDatabase) {
         return accountDao.insertAccount(account).toInt()
     }
 
-    // Seed mock database if empty
+    // Seed mock database if empty — transaction ensures atomicity
     suspend fun prepopulateDatabaseIfEmpty() {
-        // Check if there are any accounts
         val currentAccounts = accountDao.getAllAccounts().first()
         if (currentAccounts.isEmpty()) {
+            database.withTransaction {
             // 1. Create Default Accounts
             val gmailAccountId = accountDao.insertAccount(
                 AccountEntity(
@@ -272,6 +277,7 @@ class EmailRepository(private val database: EmailDatabase) {
             )
 
             emailDao.insertEmails(listOf(emailOutlook1, emailOutlook2))
+            }
         }
     }
 }

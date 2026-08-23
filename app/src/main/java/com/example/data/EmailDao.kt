@@ -56,11 +56,11 @@ interface EmailDao {
     @Delete
     suspend fun deleteEmail(email: EmailEntity)
 
-    // Search query searching through subject, body, and sender details
+    // Search query searching through subject, body, and sender details — ESCAPE '\' supports wildcard escaping
     @Query("""
         SELECT * FROM emails 
         WHERE accountId = :accountId 
-          AND (senderName LIKE :query OR senderEmail LIKE :query OR subject LIKE :query OR body LIKE :query) 
+          AND (senderName LIKE :query ESCAPE '\' OR senderEmail LIKE :query ESCAPE '\' OR subject LIKE :query ESCAPE '\' OR body LIKE :query ESCAPE '\') 
         ORDER BY timestamp DESC
     """)
     fun searchEmails(accountId: Int, query: String): Flow<List<EmailEntity>>

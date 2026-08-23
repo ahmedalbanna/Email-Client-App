@@ -8,12 +8,17 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-class EmailViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val repository: EmailRepository
+class EmailViewModel(
+    application: Application,
+    private val repository: EmailRepository = EmailRepository(EmailDatabase.getDatabase(application))
+) : AndroidViewModel(application) {
 
     // State of all accounts
-    val accounts: StateFlow<List<AccountEntity>>
+    val accounts: StateFlow<List<AccountEntity>> = repository.allAccounts.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     // Selected account state
     private val _selectedAccount = MutableStateFlow<AccountEntity?>(null)
@@ -28,19 +33,10 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
     init {
-        val database = EmailDatabase.getDatabase(application)
-        repository = EmailRepository(database)
-        accounts = repository.allAccounts.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
         // Prepopulate database if required and select first account on ready
         viewModelScope.launch {
             repository.prepopulateDatabaseIfEmpty()
-            // Observe accounts and select first one if null
-            repository.allAccounts.collect { accountList ->
+            accounts.collect { accountList ->
                 if (accountList.isNotEmpty() && _selectedAccount.value == null) {
                     _selectedAccount.value = accountList.first()
                 }
@@ -94,34 +90,38 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = emptyList()
     )
 
-    // Compose Window States
-    var composeTo = MutableStateFlow("")
-        private set
-    var composeCc = MutableStateFlow("")
-        private set
-    var composeBcc = MutableStateFlow("")
-        private set
-    var composeSubject = MutableStateFlow("")
-        private set
-    var composeBody = MutableStateFlow("")
-        private set
-    var composeAttachments = MutableStateFlow<List<AttachmentEntity>>(emptyList())
-        private set
+    // Compose Window States — encapsulated
+    private val _composeTo = MutableStateFlow("")
+    val composeTo: StateFlow<String> = _composeTo.asStateFlow()
+    private val _composeCc = MutableStateFlow("")
+    val composeCc: StateFlow<String> = _composeCc.asStateFlow()
+    private val _composeBcc = MutableStateFlow("")
+    val composeBcc: StateFlow<String> = _composeBcc.asStateFlow()
+    private val _composeSubject = MutableStateFlow("")
+    val composeSubject: StateFlow<String> = _composeSubject.asStateFlow()
+    private val _composeBody = MutableStateFlow("")
+    val composeBody: StateFlow<String> = _composeBody.asStateFlow()
+    private val _composeAttachments = MutableStateFlow<List<AttachmentEntity>>(emptyList())
+    val composeAttachments: StateFlow<List<AttachmentEntity>> = _composeAttachments.asStateFlow()
 
     private val _composeStatus = MutableStateFlow<ComposeStatus>(ComposeStatus.Idle)
     val composeStatus: StateFlow<ComposeStatus> = _composeStatus.asStateFlow()
 
-    // Screen navigation state (to avoid nested navigation graphs in complex setups if desired,
-    // we can use standard compose navigation or a helper)
+    fun onComposeToChange(v: String) { _composeTo.value = v }
+    fun onComposeCcChange(v: String) { _composeCc.value = v }
+    fun onComposeBccChange(v: String) { _composeBcc.value = v }
+    fun onComposeSubjectChange(v: String) { _composeSubject.value = v }
+    fun onComposeBodyChange(v: String) { _composeBody.value = v }
+
     fun selectAccount(account: AccountEntity) {
         _selectedAccount.value = account
-        _selectedFolder.value = "Inbox" // Reset to inbox on account change
-        _selectedEmailId.value = null // Close reading pane
+        _selectedFolder.value = "Inbox"
+        _selectedEmailId.value = null
     }
 
     fun selectFolder(folder: String) {
         _selectedFolder.value = folder
-        _selectedEmailId.value = null // Close reading pane
+        _selectedEmailId.value = null
     }
 
     fun setSearchQuery(query: String) {
@@ -131,7 +131,6 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
     fun selectEmail(id: Int?) {
         _selectedEmailId.value = id
         if (id != null) {
-            // Automatically mark email as read
             viewModelScope.launch {
                 repository.updateReadStatus(id, true)
             }
@@ -154,49 +153,56 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.moveEmailToFolder(emailId, targetFolder)
             if (_selectedEmailId.value == emailId) {
-                _selectedEmailId.value = null // Close if opened
+                _selectedEmailId.value = null
             }
         }
     }
 
     fun composeNewEmail() {
-        composeTo.value = ""
-        composeCc.value = ""
-        composeBcc.value = ""
-        composeSubject.value = ""
-        composeBody.value = ""
-        composeAttachments.value = emptyList()
+        _composeTo.value = ""
+        _composeCc.value = ""
+        _composeBcc.value = ""
+        _composeSubject.value = ""
+        _composeBody.value = ""
+        _composeAttachments.value = emptyList()
         _composeStatus.value = ComposeStatus.Idle
     }
 
+    fun prepareReply(email: EmailEntity) {
+        composeNewEmail()
+        _composeTo.value = email.senderEmail
+        _composeSubject.value = "رد: " + email.subject
+        _composeBody.value = "\n\n----- الرسالة السابقة -----\n" + email.body.replace(Regex("<[^>]*>"), "")
+    }
+
     fun addMockAttachment() {
-        val count = composeAttachments.value.size + 1
+        val count = _composeAttachments.value.size + 1
         val isPdf = count % 2 == 1
         val name = if (isPdf) "وثيقة_المشروع_ملف_$count.pdf" else "صورة_معاينة_التصميم_$count.png"
         val size = if (isPdf) "${(1.2 + count * 0.3).toString().take(3)} MB" else "${(400 + count * 150)} KB"
         val type = if (isPdf) "application/pdf" else "image/png"
 
         val mockAttachment = AttachmentEntity(
-            emailId = 0, // Assigned later
+            emailId = 0,
             fileName = name,
             fileSize = size,
             fileType = type
         )
-        composeAttachments.value = composeAttachments.value + mockAttachment
+        _composeAttachments.value = _composeAttachments.value + mockAttachment
     }
 
     fun removeMockAttachment(index: Int) {
-        val list = composeAttachments.value.toMutableList()
+        val list = _composeAttachments.value.toMutableList()
         if (index in list.indices) {
             list.removeAt(index)
-            composeAttachments.value = list
+            _composeAttachments.value = list
         }
     }
 
     fun sendEmail() {
-        val toValue = composeTo.value
-        val subjectValue = composeSubject.value
-        val bodyValue = composeBody.value
+        val toValue = _composeTo.value
+        val subjectValue = _composeSubject.value
+        val bodyValue = _composeBody.value
         val currentAcc = _selectedAccount.value
 
         if (currentAcc == null) {
@@ -218,7 +224,6 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             try {
-                // Simulate network latency (SMTP connection and security exchange)
                 kotlinx.coroutines.delay(1000)
 
                 val sentEmail = EmailEntity(
@@ -226,18 +231,18 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
                     senderName = currentAcc.displayName,
                     senderEmail = currentAcc.emailAddress,
                     recipientEmail = toValue,
-                    cc = composeCc.value,
-                    bcc = composeBcc.value,
+                    cc = _composeCc.value,
+                    bcc = _composeBcc.value,
                     subject = subjectValue,
                     body = bodyValue,
                     timestamp = System.currentTimeMillis(),
-                    isRead = true, // Emails sent are already read
+                    isRead = true,
                     isStarred = false,
                     folder = "Sent",
-                    hasAttachments = composeAttachments.value.isNotEmpty()
+                    hasAttachments = _composeAttachments.value.isNotEmpty()
                 )
 
-                repository.sendOrSaveEmail(sentEmail, composeAttachments.value)
+                repository.sendOrSaveEmail(sentEmail, _composeAttachments.value)
                 _composeStatus.value = ComposeStatus.Success
             } catch (e: Exception) {
                 _composeStatus.value = ComposeStatus.Error("حدث خطأ أثناء الاتصال بخادم SMTP: ${e.localizedMessage}")
@@ -245,62 +250,69 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    // Account Creation Window State
-    var accountAddress = MutableStateFlow("")
-        private set
-    var accountDisplayName = MutableStateFlow("")
-        private set
-    var accountProvider = MutableStateFlow("Gmail")
-        private set
-    var accountIncomingServer = MutableStateFlow("imap.gmail.com")
-        private set
-    var accountOutgoingServer = MutableStateFlow("smtp.gmail.com")
-        private set
-    var accountPort = MutableStateFlow("993")
-        private set
-    var accountColorHex = MutableStateFlow("#EA4335")
-        private set
+    // Account Creation Window State — encapsulated
+    private val _accountAddress = MutableStateFlow("")
+    val accountAddress: StateFlow<String> = _accountAddress.asStateFlow()
+    private val _accountDisplayName = MutableStateFlow("")
+    val accountDisplayName: StateFlow<String> = _accountDisplayName.asStateFlow()
+    private val _accountProvider = MutableStateFlow("Gmail")
+    val accountProvider: StateFlow<String> = _accountProvider.asStateFlow()
+    private val _accountIncomingServer = MutableStateFlow("imap.gmail.com")
+    val accountIncomingServer: StateFlow<String> = _accountIncomingServer.asStateFlow()
+    private val _accountOutgoingServer = MutableStateFlow("smtp.gmail.com")
+    val accountOutgoingServer: StateFlow<String> = _accountOutgoingServer.asStateFlow()
+    private val _accountPort = MutableStateFlow("993")
+    val accountPort: StateFlow<String> = _accountPort.asStateFlow()
+    private val _accountColorHex = MutableStateFlow("#EA4335")
+    val accountColorHex: StateFlow<String> = _accountColorHex.asStateFlow()
 
     private val _accountCreationStatus = MutableStateFlow<AccountCreationStatus>(AccountCreationStatus.Idle)
     val accountCreationStatus: StateFlow<AccountCreationStatus> = _accountCreationStatus.asStateFlow()
 
+    fun onAccountAddressChange(v: String) { _accountAddress.value = v }
+    fun onAccountDisplayNameChange(v: String) { _accountDisplayName.value = v }
+    fun onAccountIncomingServerChange(v: String) { _accountIncomingServer.value = v }
+    fun onAccountOutgoingServerChange(v: String) { _accountOutgoingServer.value = v }
+    fun onAccountPortChange(v: String) { _accountPort.value = v }
+    fun onAccountColorHexChange(v: String) { _accountColorHex.value = v }
+
     fun updateAccountProvider(provider: String) {
-        accountProvider.value = provider
+        _accountProvider.value = provider
         when (provider) {
             "Gmail" -> {
-                accountIncomingServer.value = "imap.gmail.com"
-                accountOutgoingServer.value = "smtp.gmail.com"
-                accountPort.value = "993"
-                accountColorHex.value = "#EA4335"
+                _accountIncomingServer.value = "imap.gmail.com"
+                _accountOutgoingServer.value = "smtp.gmail.com"
+                _accountPort.value = "993"
+                _accountColorHex.value = "#EA4335"
             }
             "Outlook" -> {
-                accountIncomingServer.value = "outlook.office365.com"
-                accountOutgoingServer.value = "smtp.office365.com"
-                accountPort.value = "993"
-                accountColorHex.value = "#0078D4"
+                _accountIncomingServer.value = "outlook.office365.com"
+                _accountOutgoingServer.value = "smtp.office365.com"
+                _accountPort.value = "993"
+                _accountColorHex.value = "#0078D4"
             }
             "Yahoo" -> {
-                accountIncomingServer.value = "imap.mail.yahoo.com"
-                accountOutgoingServer.value = "smtp.mail.yahoo.com"
-                accountPort.value = "993"
-                accountColorHex.value = "#6001D2"
+                _accountIncomingServer.value = "imap.mail.yahoo.com"
+                _accountOutgoingServer.value = "smtp.mail.yahoo.com"
+                _accountPort.value = "993"
+                _accountColorHex.value = "#6001D2"
             }
             else -> {
-                accountIncomingServer.value = "imap.corporate.com"
-                accountOutgoingServer.value = "smtp.corporate.com"
-                accountPort.value = "993"
-                accountColorHex.value = "#4CAF50"
+                _accountIncomingServer.value = "imap.corporate.com"
+                _accountOutgoingServer.value = "smtp.corporate.com"
+                _accountPort.value = "993"
+                _accountColorHex.value = "#4CAF50"
             }
         }
     }
 
     fun createAccount() {
-        val address = accountAddress.value
-        val name = accountDisplayName.value
-        val provider = accountProvider.value
-        val incoming = accountIncomingServer.value
-        val outgoing = accountOutgoingServer.value
-        val portStr = accountPort.value
+        val address = _accountAddress.value
+        val name = _accountDisplayName.value
+        val provider = _accountProvider.value
+        val incoming = _accountIncomingServer.value
+        val outgoing = _accountOutgoingServer.value
+        val portStr = _accountPort.value
 
         if (address.isBlank() || !address.contains("@")) {
             _accountCreationStatus.value = AccountCreationStatus.Error("الرجاء إدخال عنوان بريد إلكتروني صالح")
@@ -317,7 +329,6 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             try {
-                // Simulate IMAP authentication exchange secure handshake
                 kotlinx.coroutines.delay(1200)
 
                 val newAccount = AccountEntity(
@@ -327,12 +338,11 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
                     incomingServer = incoming,
                     outgoingServer = outgoing,
                     port = port,
-                    colorHex = accountColorHex.value
+                    colorHex = _accountColorHex.value
                 )
 
                 val newId = repository.createAccount(newAccount)
                 
-                // Construct a warm welcome email for the newly registered account
                 val welcomeEmail = EmailEntity(
                     accountId = newId,
                     senderName = "البريد الإلكتروني الذكي",
@@ -354,7 +364,6 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 repository.sendOrSaveEmail(welcomeEmail)
 
-                // Retrieve and change to the newly created account
                 val createdAcc = repository.allAccounts.first().find { it.id == newId }
                 if (createdAcc != null) {
                     _selectedAccount.value = createdAcc
@@ -363,10 +372,8 @@ class EmailViewModel(application: Application) : AndroidViewModel(application) {
 
                 _accountCreationStatus.value = AccountCreationStatus.Success
 
-                // Reset creation fields — keep Success until UI consumes it
-                // (was: immediate Idle reset swallowed LaunchedEffect)
-                accountAddress.value = ""
-                accountDisplayName.value = ""
+                _accountAddress.value = ""
+                _accountDisplayName.value = ""
             } catch (e: Exception) {
                 _accountCreationStatus.value = AccountCreationStatus.Error("فشلت عملية التحقق بروتوكول IMAP: ${e.localizedMessage}")
             }

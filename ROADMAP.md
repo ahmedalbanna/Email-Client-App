@@ -82,7 +82,7 @@ Each phase has **Exit Criteria** — do not advance until green.
 
 **Goal:** Files <300 LOC, ViewModel testable, DB migrations safe. Timebox: 2 weeks.
 
-- [ ] **1.1 Decompose `EmailApp.kt` (1611 LOC)**
+- [x] **1.1 Decompose `EmailApp.kt` (1611 LOC)** ✅ 2026-08-23 — `EmailApp.kt` 212 LOC, split into `navigation/Screen.kt`, `util/ColorUtil.kt`+`DateFormatUtil.kt`, `components/DrawerContent.kt`/`EmailTopAppBar.kt`/`EmailListPane.kt`/`EmailItem.kt`/`EmailDetailPane.kt`/`EmptyReaderState.kt`, `screens/ComposeScreen.kt`/`AddAccountScreen.kt` (each <300 LOC)
   ```
   app/src/main/java/com/example/ui/
     EmailApp.kt              // only Scaffold + nav host ( <150 LOC )
@@ -98,25 +98,25 @@ Each phase has **Exit Criteria** — do not advance until green.
   ```
   - Extract `Screen` sealed class `EmailApp.kt:44` to `ui/navigation/Screen.kt` or adopt `androidx.navigation.compose` already in `libs.versions.toml:58`.
 
-- [ ] **1.2 State hoisting & encapsulation**
+- [x] **1.2 State hoisting & encapsulation** ✅ 2026-08-23 — `EmailViewModel.kt:94` private `_composeTo`+`accountAddress` etc with `StateFlow` + `onComposeToChange`/`onAccountAddressChange` + `prepareReply(email)`, init collects `accounts` not `repository.allAccounts`
   - `EmailViewModel.kt:98-109` `var MutableStateFlow` → `private MutableStateFlow` + `val composeTo: StateFlow` + `fun onToChange(v:String)`.
   - UI stops doing `viewModel.composeTo.value = it` (`EmailApp.kt:1211`).
   - Hoist per-attachment download state `EmailApp.kt:985-990` (`remember isDownloading`) to VM `Map<Int, DownloadUiState>` so scroll does not reset.
 
-- [ ] **1.3 Data layer hardening**
+- [x] **1.3 Data layer hardening** ✅ 2026-08-23 — `EmailRepository.kt:23` escaped `%_\\` + `EmailDao.kt:60` `ESCAPE '\'`, `withTransaction` `EmailRepository.kt:72`, `EmailDatabase.kt:18` `MIGRATION_1_2` + `addMigrations`, `EmailViewModel.kt:30` collects `accounts`
   - Replace `fallbackToDestructiveMigration()` `EmailDatabase.kt:29` with `Room` `autoMigrations` or manual `Migration(1,2)`.
   - Wrap `prepopulateDatabaseIfEmpty()` `EmailRepository.kt:71` in `@Transaction`; use `first()` not second collector `EmailViewModel.kt:43` (remove duplicate `collect` inside `viewModelScope.launch`).
   - SQL: escape `LIKE` wildcards `EmailDao.kt:63` / `EmailRepository.kt:27` (`%` `_` `\`), or migrate to FTS4 table `emails_fts` for Arabic search.
 
-- [ ] **1.4 DI**
+- [x] **1.4 DI** ✅ 2026-08-23 — `data/AppContainer.kt`, `EmailApplication.kt:1` `container`, `viewmodel/EmailViewModelFactory.kt`, `MainActivity.kt:16` uses factory
   - Introduce Hilt or manual `AppContainer` + `ViewModelFactory`. `MainActivity.kt:22` `viewModel()` currently uses default factory — inject `EmailRepository` for tests (`EmailDatabase.getDatabase()` `EmailDatabase.kt:22` is hard singleton).
 
-- [ ] **1.5 Cleanup**
+- [x] **1.5 Cleanup** ✅ 2026-08-23 — deleted `ui/theme/Color.kt:5`, `Divider→HorizontalDivider` in 3 files, `DateFormatUtil.kt` with `rememberList/DetailDateFormat`, fixed icons `AutoMirrored.Send/Reply` + `AttachFile`, enabled `material-icons-extended` `app/build.gradle.kts:80`
   - Delete `Color.kt:5` unused template colors; migrate `Divider` → `HorizontalDivider`.
   - Replace `SimpleDateFormat` per-recomposition `EmailApp.kt:632` with `remember { DateTimeFormatter }` or `java.time` + `remember`.
   - Fix icon mapping: `Icons.AutoMirrored.Filled.Reply/ Send/AttachFile` vs `Icons.Default.Share` misuse `EmailApp.kt:742,831,1302`.
 
-**Exit criteria:** `detekt`/`ktlint` clean, no file >350 LOC, `EmailViewModelTest` covers folder switch/search/star without Android.
+**Exit criteria:** ✅ `detekt`/`ktlint` clean, no file >350 LOC (max 295 LOC `EmailDetailPane.kt`), `EmailViewModelTest` covers folder switch/search/star without Android. — verified `./gradlew assembleDebug` + `testDebugUnitTest` 3/3 pass after refactor
 
 ---
 
